@@ -126,4 +126,4 @@ sortWithRanking ranking deck = Map.foldlWithKey (\set card rank -> Set.insert (r
                 This way, lower orders are considered more important,
                 thus the popularity of the card on its own (first order combination) is most important
                 -}
-                rank = (fromIntegral count)
+                rank = (fromIntegral count) * 1.0 / (2.0 ^ Set.size combo)
