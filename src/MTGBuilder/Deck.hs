@@ -89,21 +89,21 @@ composeDecks ranking deckSize decks = compose $ Set.unions decks
 
 -- Each card in the set is ranked.
 sortWithRanking :: Ranking -> Set Card -> Set (Double, Card)
-sortWithRanking ranking deck = Set.map rank deck
+sortWithRanking ranking deck = Map.foldlWithKey (\set card rank -> Set.insert (rank, card) set) Set.empty rankMap
     where
-        {-
-        To rank a card, look at each combination in the ranking.
-        For each combination that contains the card, and is a subset of the deck,
-        add to the card's ranking the following:
-
-            (popularity of combo) * 1 / (2 ^ order of combo)
-
-        This way, lower orders are considered more important,
-        thus the popularity of the card on its own (first order combination) is most important
-        -}
-        rank :: Card -> (Double, Card)
-        rank card = (Map.foldlWithKey f 0 $ interaction ranking, card)
+        rankMap = Map.foldlWithKey rankCombo Map.empty $ interaction ranking
+        rankCombo map combo count
+            | combo `Set.isSubsetOf` deck = foldl (\m card -> Map.insertWith (+) card rank m) map combo
+            | otherwise = map
             where
-                f rnk cardCombo count
-                    | Set.member card cardCombo && cardCombo `Set.isSubsetOf` deck = rnk + (fromIntegral count) * (1.0 / (2.0 ^ Set.size cardCombo))
-                    | otherwise = rnk
+                {-
+                To rank a card, look at each combination in the ranking.
+                For each combination that contains the card, and is a subset of the deck,
+                add to the card's ranking the following:
+
+                    (popularity of combo) * 1 / (2 ^ order of combo)
+
+                This way, lower orders are considered more important,
+                thus the popularity of the card on its own (first order combination) is most important
+                -}
+                rank = (fromIntegral count) * (1.0 / (2.0 ^ Set.size combo))
