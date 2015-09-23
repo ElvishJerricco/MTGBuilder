@@ -10,13 +10,13 @@ import Control.Monad
 import Control.Monad.Reader
 import MTGBuilder.Deck
 import MTGBuilder.Parser
-import MTGBuilder.Dump
 import Data.Set (Set)
 import qualified Data.Set as Set
 
 data Options = Options  {
     optVerbose      :: Bool,
-    optOutput       :: String -> IO (),
+    optWriteRanking :: String -> IO (),
+    optOutput       :: Handle,
     optPrecision    :: Int
 }
 
@@ -24,7 +24,9 @@ options :: [OptDescr (Options -> IO Options)]
 options =
     [ Option "o" ["output"]
         (ReqArg
-            (\arg opt -> return opt { optOutput = writeFile arg })
+            (\arg opt -> do
+                handle <- openFile arg WriteMode
+                return opt { optOutput = handle })
             "FILE")
         "Output file"
  
@@ -32,6 +34,12 @@ options =
         (ReqArg
             (\arg opt -> return opt { optPrecision = read arg })
             "NUMBER")
+        "Order of precision to measure interactions with"
+ 
+    , Option "r" ["rankingFile"]
+        (ReqArg
+            (\arg opt -> return opt { optWriteRanking = writeFile arg })
+            "FILE")
         "Order of precision to measure interactions with"
  
     , Option "v" ["verbose"]
@@ -57,7 +65,8 @@ options =
 startOptions :: Options
 startOptions = Options  {
     optVerbose      = False,
-    optOutput       = putStr,
+    optWriteRanking  = (\s -> return ()),
+    optOutput       = stdout,
     optPrecision    = 2     -- Default to only second order rankings
 }
 
@@ -72,6 +81,7 @@ main = do
  
     let Options {
         optVerbose = verbose,
+        optWriteRanking = writeRanking,
         optOutput = output,
         optPrecision = precision
     } = opts
@@ -96,12 +106,13 @@ main = do
 
     -- Produce the rank mappings
     ranking <- runReaderT (makeRanking precision namedDecks) verbose
+    writeRanking $ dumpRanking ranking
 
     -- Compose the decks into the aggregate deck
     deck <- runReaderT (composeDecks ranking 60 decks) verbose
     when verbose $ hPutStrLn stderr ("Final size: " ++ (show $ Set.size deck))
     let dump = dumpDeck deck
-    output $ dump
+    hPutStrLn output dump
     when verbose $ hPutStrLn stderr $ dump
-    output "\n"
+    hClose output
     return ()

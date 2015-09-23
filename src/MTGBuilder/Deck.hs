@@ -3,6 +3,8 @@
 module MTGBuilder.Deck (
     makeRanking,
     composeDecks,
+    dumpDeck,
+    dumpRanking,
     Ranking,
     Card(..),
     Deck
@@ -14,6 +16,7 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.List
 import Control.Monad.Reader
 import System.IO
 
@@ -51,20 +54,37 @@ data Ranking = MkRanking {
 
 -- The return type of this function is a reader over IO so that verbosity can be read, and verbose messages can be printed
 makeRanking :: Int -> [(String, Deck)] -> ReaderT Bool IO Ranking
-makeRanking size = rankDecks MkRanking { interaction=Map.empty, interactionSize=size }
+makeRanking size inputDecks = do
+    verbose <- ask
+    rankDecks MkRanking { interaction=Map.empty, interactionSize=size } inputDecks
     where
         rankDecks :: Ranking -> [(String, Deck)] -> ReaderT Bool IO Ranking
         rankDecks ranking [] = return ranking
         rankDecks ranking ((name, deck):decks) = do
             verbose <- ask
             when verbose (liftIO $ hPutStrLn stderr $ "Ranking " ++ name)
-            ranked <- rankDecks (ranking { interaction=int }) decks
-            return ranked
+            rankDecks (ranking { interaction=int }) decks
             where
                 !int = -- Strict, because it will be fully evaluated anyway, and this provides more realistic verbose messages.
                     let f map x = Map.insertWith (+) x 1 map
-                    in Map.unionsWith (+) [foldl f (interaction ranking) $ combinations n deck | n <- [1..(interactionSize ranking)]]
+                    in foldl f (interaction ranking) $ Set.unions [combinations n deck | n <- [1..(interactionSize ranking)]]
 
+dumpDeck :: Deck -> String
+dumpDeck deck = intercalate "\n" lines
+    where
+        lines :: [String]
+        lines = fmap (\(cardName, count) -> (show count) ++ " " ++ cardName) (Map.assocs getMap)
+            where
+                getMap :: Map String Int
+                getMap = foldl f Map.empty deck
+                    where
+                        f = (\map card -> Map.insertWith (+) (name card) 1 map)
+
+dumpRanking :: Ranking -> String
+dumpRanking ranking = intercalate "\n" lines
+    where
+        lines :: [String]
+        lines = fmap (\(combo, count) -> (show count) ++ " : " ++ (show combo)) $ Map.assocs $ interaction ranking
 {-
 Composition combines all the input decks.
 Note: Although different copies of the same card are treated as different cards in this algorithm,
@@ -83,7 +103,7 @@ composeDecks ranking deckSize decks = compose $ Set.unions decks
             | Set.size sorted <= deckSize = return $ Set.map snd sorted
             | otherwise = do
                 verbose <- ask
-                when verbose (liftIO $ hPutStrLn stderr (show $ Set.size sorted))
+                when verbose $ liftIO $ hPutStrLn stderr (show $ Set.size sorted)
                 compose $ Set.map snd $ fromMaybe Set.empty $ fmap snd $ Set.minView sorted
             where sorted = sortWithRanking ranking cards
 
@@ -106,4 +126,4 @@ sortWithRanking ranking deck = Map.foldlWithKey (\set card rank -> Set.insert (r
                 This way, lower orders are considered more important,
                 thus the popularity of the card on its own (first order combination) is most important
                 -}
-                rank = (fromIntegral count) * (1.0 / (2.0 ^ Set.size combo))
+                rank = (fromIntegral count)
