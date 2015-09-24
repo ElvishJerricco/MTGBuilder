@@ -30,13 +30,13 @@ options =
             "FILE")
         "Output file"
  
-    , Option "p" ["precision"]
+    , Option "r" ["ranking"]
         (ReqArg
             (\arg opt -> return opt { optPrecision = read arg })
             "NUMBER")
-        "Order of precision to measure interactions with"
+        "Order of rankings to compose the input decks with"
  
-    , Option "r" ["rankingFile"]
+    , Option "f" ["rankingFile"]
         (ReqArg
             (\arg opt -> return opt { optWriteRanking = writeFile arg })
             "FILE")
@@ -57,7 +57,7 @@ options =
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
-                hPutStrLn stderr (usageInfo "MTGBuilder" options)
+                hPutStrLn stderr (usageInfo "mtg-builder" options)
                 exitWith ExitSuccess))
         "Show help"
     ]
