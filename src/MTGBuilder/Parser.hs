@@ -22,6 +22,7 @@ deckTokens = Token.makeTokenParser $ emptyDef {
 identifier = Token.identifier deckTokens
 lexeme = Token.lexeme deckTokens
 reserved = Token.reserved deckTokens
+symbol = Token.symbol deckTokens
 natural = Token.natural deckTokens
 brackets = Token.brackets deckTokens
 whiteSpace = Token.whiteSpace deckTokens
@@ -30,7 +31,7 @@ deckParser :: Parser Deck
 deckParser = do
     whiteSpace
     d <- deck
-    sideboard
+    optionMaybe sideboard
     return d
 
 deck :: Parser Deck
@@ -39,10 +40,10 @@ deck = do
     return $ unions cards
 
 cardParser :: Parser (Set Card)
-cardParser = mainboardCard <|> (sideboardCard >> return empty)
+cardParser = lexeme (mainboardCard <|> (sideboardCard >> return empty))
 
 mainboardCard :: Parser (Set Card)
-mainboardCard = lexeme $ do
+mainboardCard = do
     numCopies <- natural
     set <- optionMaybe $ brackets $ optionMaybe identifier
     name <- manyTill anyChar endOfCard
@@ -51,7 +52,7 @@ mainboardCard = lexeme $ do
 
 sideboardCard :: Parser ()
 sideboardCard = do
-    reserved "SB:"
+    symbol "SB:"
     mainboardCard
     return ()
 
