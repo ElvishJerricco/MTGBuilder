@@ -67,7 +67,7 @@ makeRanking size inputDecks = do
             where
                 !int = -- Strict, because it will be fully evaluated anyway, and this provides more realistic verbose messages.
                     let f map x = Map.insertWith (+) x 1 map
-                    in foldl f (interaction ranking) $ Set.unions [combinations n deck | n <- [1..(interactionSize ranking)]]
+                    in  foldl f (interaction ranking) $ Set.unions [combinations n deck | n <- [1..(interactionSize ranking)]]
 
 dumpDeck :: Deck -> String
 dumpDeck deck = intercalate "\n" lines
