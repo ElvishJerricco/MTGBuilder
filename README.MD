@@ -7,7 +7,7 @@ To run, you'll need to have haskell installed. Create a cabal sandbox, or don't.
 Command line arguments:
 ---
 
-`mtg-builder [args] input_deck_files...
+`mtg-builder [args] input_deck_files...`
 
 * `-o FILE` | `--output=FILE`
     * Output file
