@@ -40,7 +40,7 @@ options =
         (ReqArg
             (\arg opt -> return opt { optWriteRanking = writeFile arg })
             "FILE")
-        "Order of precision to measure interactions with"
+        "File to save ranking information to (mostly for debug info)"
  
     , Option "v" ["verbose"]
         (NoArg

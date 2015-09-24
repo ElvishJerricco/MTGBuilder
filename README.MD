@@ -14,7 +14,7 @@ Command line arguments:
 * `-r NUMBER` | `--ranking=NUMBER`
     * Order of rankings to compose the input decks with
 * `-f FILE` | `--rankingFile=FILE`
-    * Order of precision to measure interactions with
+    * File to save ranking information to (mostly for debug info)
 * `-v` | `--verbose`
     * Enable verbose messages
 * `-V` | `--version`
