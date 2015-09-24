@@ -7,15 +7,15 @@ To run, you'll need to have haskell installed. Create a cabal sandbox, or don't.
 Command line arguments:
 ---
 
-* -o FILE | --output=FILE
+* `-o FILE` | `--output=FILE`
     * Output file
-* -r NUMBER | --ranking=NUMBER
+* `-r NUMBER` | `--ranking=NUMBER`
     * Order of rankings to compose the input decks with
-* -f FILE | --rankingFile=FILE
+* `-f FILE` | `--rankingFile=FILE`
     * Order of precision to measure interactions with
-* -v | --verbose
+* `-v` | `--verbose`
     * Enable verbose messages
-* -V | --version
+* `-V` | `--version`
     * Print version
-* -h | --help
+* `-h` | `--help`
     * Show help
