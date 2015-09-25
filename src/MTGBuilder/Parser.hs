@@ -1,11 +1,15 @@
 module MTGBuilder.Parser (
     deckParser,
     parseDeckString,
-    parseDeckFile
+    parseDeckFile,
+    parseDeckFileOrFail
 ) where
 
 import MTGBuilder.Deck
+import MTGBuilder.Options
+import System.IO
 import Control.Monad
+import Control.Monad.Reader
 import Data.Set
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Language
@@ -36,7 +40,7 @@ deckParser = do
 
 deck :: Parser Deck
 deck = do
-    cards <- many cardParser
+    cards <- many $ try cardParser
     return $ unions cards
 
 cardParser :: Parser (Set Card)
@@ -64,3 +68,13 @@ sideboard = do
 
 parseDeckString = parse deckParser
 parseDeckFile = parseFromFile deckParser
+
+parseDeckFileOrFail :: String -> ReaderT Options IO (String, Deck)
+parseDeckFileOrFail file = do
+    Options {optVerbose=verbose} <- ask
+    when verbose $ liftIO $ hPutStrLn stderr ("Parsing deck: " ++ file)
+    result <- liftIO $ parseDeckFile file
+    case result of
+        Left err    -> fail $ show err
+        Right deck  -> do
+            return (file, deck)
