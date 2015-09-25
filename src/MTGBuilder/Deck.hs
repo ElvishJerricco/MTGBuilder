@@ -110,9 +110,12 @@ composeDecks ranking deckSize decks = compose $ Set.unions decks
             | Set.size sorted <= deckSize = return $ Set.map snd sorted
             | otherwise = do
                 Options {optVerbose=verbose} <- ask
-                when verbose $ liftIO $ hPutStrLn stderr (show $ Set.size sorted)
-                compose $ Set.map snd $ fromMaybe Set.empty $ fmap snd $ Set.minView sorted
-            where sorted = sortWithRanking ranking cards
+                when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size sorted
+                when verbose $ liftIO $ hPutStrLn stderr $ show minPair
+                compose $ Set.map snd $ fromMaybe Set.empty $ fmap snd minPair
+            where
+                sorted = sortWithRanking ranking cards
+                minPair = Set.minView sorted
 
 -- Each card in the set is ranked.
 sortWithRanking :: Ranking -> Set Card -> Set (Double, Card)
@@ -152,6 +155,7 @@ composeAdditive ranking finalSize deck
     | otherwise = do
         Options {optVerbose=verbose} <- ask
         when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size deck
+        when verbose $ liftIO $ hPutStrLn stderr $ show $ fmap (\n -> (bestCard, n)) $ Map.lookup bestCard rankMap
         composeAdditive ranking finalSize (bestCard `Set.insert` deck)
     where
         (_, bestCard) = head $ sortBy (flip compare) $ fmap swap $ Map.toList rankMap
