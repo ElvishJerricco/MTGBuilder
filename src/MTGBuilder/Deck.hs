@@ -26,7 +26,10 @@ import System.IO
 data Card = MkCard {
     name :: String,
     copy :: Int
-} deriving (Show, Eq, Ord)
+} deriving (Eq, Ord)
+
+instance Show Card where
+    show c = (name c) ++ " #" ++ (show $ copy c)
 
 type Deck = Set Card
 
