@@ -1,23 +1,22 @@
 [An explanation of the algorithm can be found here](https://elvishjerricco.wordpress.com/2015/09/24/generating-magic-decks-using-deck-building-strategies/).
 
-Installation: `cabal install MTGBuilder`
+You will need to have the Haskell platform installed.
 
-To run, you'll need to have haskell installed. Create a cabal sandbox, or don't. That's up to you. Run `cabal install`. To run, use the `mtg-builder` tool installed by cabal.
+Installation: `cabal install MTGBuilder`
 
 Command line arguments:
 ---
 
 `mtg-builder [args] input_deck_files...`
 
-* `-o FILE` | `--output=FILE`
-    * Output file
-* `-r NUMBER` | `--ranking=NUMBER`
-    * Order of rankings to compose the input decks with
-* `-f FILE` | `--rankingFile=FILE`
-    * File to save ranking information to (mostly for debug info)
-* `-v` | `--verbose`
-    * Enable verbose messages
-* `-V` | `--version`
-    * Print version
-* `-h` | `--help`
-    * Show help
+```
+mtg-builder
+  -o FILE    --output=FILE        Output file
+  -i FILE    --input-seed=FILE    Input seed file. Only applicable for the additive algorithm
+  -r NUMBER  --ranking=NUMBER     Order of rankings to compose the input decks with
+  -f FILE    --ranking-file=FILE  File to save ranking information to (mostly for debug info)
+  -v         --verbose            Enable verbose messages
+  -s         --subtractive        Use the subtractive algorithm
+  -V         --version            Print version
+  -h         --help               Show help
+```
