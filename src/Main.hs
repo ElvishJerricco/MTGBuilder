@@ -79,10 +79,8 @@ startOptions = Options  {
 }
 
 main = do
-    args <- getArgs
- 
     -- Parse options, getting a list of option actions and input deck files
-    let (actions, nonOptions, errors) = getOpt RequireOrder options args
+    (actions, nonOptions, errors) <- getArgs >>= return . getOpt RequireOrder options
 
     -- Thread startOptions through all supplied option actions
     opts <- foldl (>>=) (return startOptions) actions
