@@ -10,7 +10,8 @@ import MTGBuilder.Options
 import System.IO
 import Control.Monad
 import Control.Monad.Reader
-import Data.Set
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as Token
@@ -34,37 +35,34 @@ whiteSpace = Token.whiteSpace deckTokens
 deckParser :: Parser Deck
 deckParser = do
     whiteSpace
-    d <- deck
-    optionMaybe sideboard
-    return d
+    Set.union <$> deck <*> option Set.empty sideboard
 
 deck :: Parser Deck
-deck = do
-    cards <- many $ try cardParser
-    return $ unions cards
+deck = Set.unions <$> (many $ try cardParser)
 
 cardParser :: Parser (Set Card)
-cardParser = lexeme (mainboardCard <|> (sideboardCard >> return empty))
+cardParser = lexeme (mainboardCard <|> sideboardCard)
 
 mainboardCard :: Parser (Set Card)
 mainboardCard = do
     numCopies <- natural
     set <- optionMaybe $ brackets $ optionMaybe identifier
     name <- manyTill anyChar endOfCard
-    return $ fromList [MkCard {name=name,copy=fromIntegral n} | n <- [1..numCopies]]
+    return $ Set.fromList [MkCard {name=name,copy=fromIntegral n,isSideboard=False} | n <- [1..numCopies]]
     where endOfCard = (endOfLine >> return ()) <|> eof
 
-sideboardCard :: Parser ()
+setSideboard :: Card -> Card
+setSideboard card = card {isSideboard = True}
+
+sideboardCard :: Parser (Set Card)
 sideboardCard = do
     symbol "SB:"
-    mainboardCard
-    return ()
+    Set.map setSideboard <$> mainboardCard
 
-sideboard :: Parser ()
+sideboard :: Parser Deck
 sideboard = do
     reserved "sideboard"
-    deck
-    return ()
+    Set.map setSideboard <$> deck
 
 parseDeckString = parse deckParser
 parseDeckFile = parseFromFile deckParser

@@ -21,15 +21,19 @@ import Data.Maybe
 import Data.List
 import Data.Tuple
 import Control.Monad.Reader
+import Control.Monad.State
 import System.IO
 
 data Card = MkCard {
-    name :: String,
-    copy :: Int
+    name        :: String,
+    copy        :: Int,
+    isSideboard :: Bool
 } deriving (Eq, Ord)
 
 instance Show Card where
-    show c = (name c) ++ " #" ++ (show $ copy c)
+    show c
+        | isSideboard c = "SB: " ++ (name c) ++ " #" ++ (show $ copy c)
+        | otherwise =               (name c) ++ " #" ++ (show $ copy c)
 
 type Deck = Set Card
 
@@ -79,12 +83,16 @@ dumpDeck :: Deck -> String
 dumpDeck deck = intercalate "\n" lines
     where
         lines :: [String]
-        lines = fmap (\(cardName, count) -> (show count) ++ " " ++ cardName) (Map.toList getMap)
+        lines = fmap (line) (Map.toList getMap)
             where
-                getMap :: Map String Int
+                line :: ((Bool, String), Int) -> String
+                line ((isSide, cardName), count)
+                    | isSide = "SB: " ++ (show count) ++ " " ++ cardName
+                    | otherwise =        (show count) ++ " " ++ cardName
+                getMap :: Map (Bool, String) Int
                 getMap = foldl f Map.empty deck
                     where
-                        f = (\map card -> Map.insertWith (+) (name card) 1 map)
+                        f = (\map card -> Map.insertWith (+) (isSideboard card, name card) 1 map)
 
 dumpRanking :: Ranking -> String
 dumpRanking ranking = intercalate "\n" lines
@@ -111,7 +119,7 @@ composeDecks ranking deckSize decks = compose $ Set.unions decks
             | otherwise = do
                 Options {optVerbose=verbose} <- ask
                 when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size sorted
-                when verbose $ liftIO $ hPutStrLn stderr $ show minPair
+                when verbose $ liftIO $ hPutStrLn stderr $ show $ fmap fst minPair
                 compose $ Set.map snd $ fromMaybe Set.empty $ fmap snd minPair
             where
                 sorted = sortWithRanking ranking cards
@@ -149,20 +157,31 @@ That is, find the card that adds the most to the deck, and add that to it.
 An advantage of this algorithm is that you can provide a starting state,
 which allows you to specify cards you want the deck to be built around.
 -}
-composeAdditive :: Ranking -> Int -> Deck -> ReaderT Options IO Deck
-composeAdditive ranking finalSize deck
-    | Set.size deck >= finalSize = return deck
-    | otherwise = do
-        Options {optVerbose=verbose} <- ask
-        when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size deck
-        when verbose $ liftIO $ hPutStrLn stderr $ show $ fmap (\n -> (bestCard, n)) $ Map.lookup bestCard rankMap
-        composeAdditive ranking finalSize (bestCard `Set.insert` deck)
+composeAdditive :: Ranking -> (Int, Int) -> Deck -> ReaderT Options IO Deck
+composeAdditive ranking (mainSize, sideSize) deck =
+    let startState = foldl (\(m, s) c -> if isSideboard c then (m, s + 1) else (m + 1, s)) (0, 0) deck
+    in  composeAdditive' startState deck
     where
-        (_, bestCard) = head $ sortBy (flip compare) $ fmap swap $ Map.toList rankMap
-        rankMap = Map.foldlWithKey rankCombo Map.empty $ interaction ranking
-        rankCombo map combo count
-            | Set.size dif == 1 = Map.insertWith (+) (Set.elemAt 0 dif) rank map
-            | otherwise = map
+        composeAdditive' :: (Int, Int) -> Deck -> ReaderT Options IO Deck
+        composeAdditive' (main, side) deck
+            | main >= mainSize && side >= sideSize = return deck
+            | otherwise = do
+                Options {optVerbose=verbose} <- ask
+                when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size deck
+                when verbose $ liftIO $ hPutStrLn stderr $ show $ fmap (\n -> (bestCard, n)) $ Map.lookup bestCard rankMap
+                composeAdditive' newSize (bestCard `Set.insert` deck)
             where
-                dif = combo `Set.difference` deck
-                rank = (fromIntegral count) * 1.0 / (2.0 ^ Set.size combo)
+                newSize
+                    | isSideboard bestCard = (main, side + 1) 
+                    | otherwise = (main + 1, side)
+                (_, bestCard) = head $ sortBy (flip compare) $ fmap swap $ Map.toList rankMap
+                rankMap = Map.filterWithKey filt $ Map.foldlWithKey rankCombo Map.empty $ interaction ranking
+                filt card r
+                    | (side >= sideSize && isSideboard card) || (main >= mainSize && not (isSideboard card)) = False
+                    | otherwise = True
+                rankCombo map combo count
+                    | Set.size dif == 1 = Map.insertWith (+) (Set.elemAt 0 dif) rank map
+                    | otherwise = map
+                    where
+                        dif = combo `Set.difference` deck
+                        rank = (fromIntegral count) * 1.0 / (2.0 ^ Set.size combo)
