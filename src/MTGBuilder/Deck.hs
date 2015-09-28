@@ -113,20 +113,28 @@ So if two decks each have 4 Bolts, we still only see 4 Bolts in the union.
 Composing decks simply sorts the cards in the union by sortWithRanking,
 then removes the lowest ranked card, then repeats until the deck is down to the provided size.
 -}
-composeDecks :: Ranking -> Int -> ReaderT Options IO Deck
-composeDecks ranking deckSize = compose $ Set.unions $ inputDecks ranking
+composeDecks :: Ranking -> (Int, Int) -> ReaderT Options IO Deck
+composeDecks ranking (mainSize, sideSize) =
+    let startSize = foldl (\(m, s) c -> if isSideboard c then (m, s + 1) else (m + 1, s)) (0, 0) $ inputCards ranking
+    in  compose startSize $ Set.unions $ inputDecks ranking
     where
-        compose :: Deck -> ReaderT Options IO Deck
-        compose cards
-            | Set.size sorted <= deckSize = return $ Set.map snd sorted
+        compose :: (Int, Int) -> Deck -> ReaderT Options IO Deck
+        compose (main, side) cards
+            | main <= mainSize && side <= sideSize = return cards
             | otherwise = do
                 Options {optVerbose=verbose} <- ask
-                when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size sorted
-                when verbose $ liftIO $ hPutStrLn stderr $ show $ fmap fst minPair
-                compose $ Set.map snd $ fromMaybe Set.empty $ fmap snd minPair
+                when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size cards
+                when verbose $ liftIO $ hPutStrLn stderr $ show (worstRank, worstCard)
+                compose newSize (worstCard `Set.delete` cards)
             where
-                sorted = sortWithRanking ranking cards
-                minPair = Set.minView sorted
+                newSize
+                    | isSideboard worstCard = (main, side - 1) 
+                    | otherwise = (main - 1, side)
+                (worstRank, worstCard) = head $ Set.toList sorted
+                sorted = Set.filter filt $ sortWithRanking ranking cards
+                filt (_, card)
+                    | (side <= sideSize && isSideboard card) || (main <= mainSize && not (isSideboard card)) = False
+                    | otherwise = True
 
 -- Each card in the set is ranked.
 sortWithRanking :: Ranking -> Set Card -> Set (Double, Card)

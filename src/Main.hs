@@ -102,7 +102,7 @@ run files = do
     ranking <- makeRanking precision namedDecks
     liftIO $ writeRanking $ dumpRanking ranking
     deck <- if subtractive
-        then composeDecks ranking 75
+        then composeDecks ranking (60, 15)
         else
             let seedM = fromMaybe (return Set.empty) $ fmap ((fmap snd) . parseDeckFileOrFail) inputSeed
             in  seedM >>= composeAdditive ranking (60, 15)
