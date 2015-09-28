@@ -59,14 +59,17 @@ Precision beyond 3rd order likely isn't necessary.
 
 data Ranking = MkRanking {
     interaction :: Map (Set Card) Int,
-    interactionSize :: Int
+    interactionSize :: Int,
+    inputDecks :: [Deck],
+    inputCards :: Deck
 }
 
 -- The return type of this function is a reader over IO so that verbosity can be read, and verbose messages can be printed
 makeRanking :: Int -> [(String, Deck)] -> ReaderT Options IO Ranking
 makeRanking size inputDecks = do
     Options {optVerbose=verbose} <- ask
-    rankDecks MkRanking { interaction=Map.empty, interactionSize=size } inputDecks
+    let inputs = fmap snd inputDecks
+    rankDecks MkRanking { interaction=Map.empty, interactionSize=size, inputDecks=inputs, inputCards=Set.unions inputs } inputDecks
     where
         rankDecks :: Ranking -> [(String, Deck)] -> ReaderT Options IO Ranking
         rankDecks ranking [] = return ranking
@@ -110,8 +113,8 @@ So if two decks each have 4 Bolts, we still only see 4 Bolts in the union.
 Composing decks simply sorts the cards in the union by sortWithRanking,
 then removes the lowest ranked card, then repeats until the deck is down to the provided size.
 -}
-composeDecks :: Ranking -> Int -> [Deck] -> ReaderT Options IO Deck
-composeDecks ranking deckSize decks = compose $ Set.unions decks
+composeDecks :: Ranking -> Int -> ReaderT Options IO Deck
+composeDecks ranking deckSize = compose $ Set.unions $ inputDecks ranking
     where
         compose :: Deck -> ReaderT Options IO Deck
         compose cards
@@ -158,9 +161,9 @@ An advantage of this algorithm is that you can provide a starting state,
 which allows you to specify cards you want the deck to be built around.
 -}
 composeAdditive :: Ranking -> (Int, Int) -> Deck -> ReaderT Options IO Deck
-composeAdditive ranking (mainSize, sideSize) deck =
-    let startState = foldl (\(m, s) c -> if isSideboard c then (m, s + 1) else (m + 1, s)) (0, 0) deck
-    in  composeAdditive' startState deck
+composeAdditive ranking (mainSize, sideSize) startDeck =
+    let startState = foldl (\(m, s) c -> if isSideboard c then (m, s + 1) else (m + 1, s)) (0, 0) startDeck
+    in  composeAdditive' startState startDeck
     where
         composeAdditive' :: (Int, Int) -> Deck -> ReaderT Options IO Deck
         composeAdditive' (main, side) deck
@@ -168,13 +171,13 @@ composeAdditive ranking (mainSize, sideSize) deck =
             | otherwise = do
                 Options {optVerbose=verbose} <- ask
                 when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size deck
-                when verbose $ liftIO $ hPutStrLn stderr $ show $ fmap (\n -> (bestCard, n)) $ Map.lookup bestCard rankMap
+                when verbose $ liftIO $ hPutStrLn stderr $ show (bestRank, bestCard)
                 composeAdditive' newSize (bestCard `Set.insert` deck)
             where
                 newSize
                     | isSideboard bestCard = (main, side + 1) 
                     | otherwise = (main + 1, side)
-                (_, bestCard) = head $ sortBy (flip compare) $ fmap swap $ Map.toList rankMap
+                (bestRank, bestCard) = head $ sortBy (flip compare) $ fmap swap $ Map.toList rankMap
                 rankMap = Map.filterWithKey filt $ Map.foldlWithKey rankCombo Map.empty $ interaction ranking
                 filt card r
                     | (side >= sideSize && isSideboard card) || (main >= mainSize && not (isSideboard card)) = False

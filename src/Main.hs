@@ -75,7 +75,7 @@ startOptions = Options  {
     optOutput       = stdout,
     optInputSeed    = Nothing,
     optSubtractive  = False,
-    optPrecision    = 2     -- Default to only second order rankings
+    optPrecision    = 3     -- Default to only third order rankings
 }
 
 main = do
@@ -102,7 +102,7 @@ run files = do
     ranking <- makeRanking precision namedDecks
     liftIO $ writeRanking $ dumpRanking ranking
     deck <- if subtractive
-        then composeDecks ranking 75 $ fmap snd namedDecks
+        then composeDecks ranking 75
         else
             let seedM = fromMaybe (return Set.empty) $ fmap ((fmap snd) . parseDeckFileOrFail) inputSeed
             in  seedM >>= composeAdditive ranking (60, 15)
