@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                MTGBuilder
-version:             0.2.0.0
+version:             0.2.0.1
 synopsis:            Builds decks out of a meta
 -- description:         
 license:             MIT
