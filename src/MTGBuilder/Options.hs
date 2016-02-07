@@ -1,6 +1,6 @@
 module MTGBuilder.Options where
 
-import System.IO
+import           System.IO
 
 data Options = Options  {
     optVerbose      :: Bool,

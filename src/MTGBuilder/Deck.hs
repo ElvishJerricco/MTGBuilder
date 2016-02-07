@@ -11,18 +11,18 @@ module MTGBuilder.Deck (
     Deck
 ) where
 
-import MTGBuilder.Combination
-import MTGBuilder.Options
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe
-import Data.List
-import Data.Tuple
-import Control.Monad.Reader
-import Control.Monad.State
-import System.IO
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Data.List
+import           Data.Map               (Map)
+import qualified Data.Map               as Map
+import           Data.Maybe
+import           Data.Set               (Set)
+import qualified Data.Set               as Set
+import           Data.Tuple
+import           MTGBuilder.Combination
+import           MTGBuilder.Options
+import           System.IO
 
 data Card = MkCard {
     name        :: String,
@@ -32,8 +32,8 @@ data Card = MkCard {
 
 instance Show Card where
     show c
-        | isSideboard c = "SB: " ++ (name c) ++ " #" ++ (show $ copy c)
-        | otherwise =               (name c) ++ " #" ++ (show $ copy c)
+        | isSideboard c = "SB: " ++ name c ++ " #" ++ show (copy c)
+        | otherwise =               name c ++ " #" ++ show (copy c)
 
 type Deck = Set Card
 
@@ -58,10 +58,10 @@ Precision beyond 3rd order likely isn't necessary.
 -}
 
 data Ranking = MkRanking {
-    interaction :: Map (Set Card) Int,
+    interaction     :: Map (Set Card) Int,
     interactionSize :: Int,
-    inputDecks :: [Deck],
-    inputCards :: Deck
+    inputDecks      :: [Deck],
+    inputCards      :: Deck
 }
 
 -- The return type of this function is a reader over IO so that verbosity can be read, and verbose messages can be printed
@@ -86,22 +86,22 @@ dumpDeck :: Deck -> String
 dumpDeck deck = intercalate "\n" lines
     where
         lines :: [String]
-        lines = fmap (line) (Map.toList getMap)
+        lines = fmap line (Map.toList getMap)
             where
                 line :: ((Bool, String), Int) -> String
                 line ((isSide, cardName), count)
-                    | isSide = "SB: " ++ (show count) ++ " " ++ cardName
-                    | otherwise =        (show count) ++ " " ++ cardName
+                    | isSide = "SB: " ++ show count ++ " " ++ cardName
+                    | otherwise =        show count ++ " " ++ cardName
                 getMap :: Map (Bool, String) Int
                 getMap = foldl f Map.empty deck
                     where
-                        f = (\map card -> Map.insertWith (+) (isSideboard card, name card) 1 map)
+                        f map card = Map.insertWith (+) (isSideboard card, name card) 1 map
 
 dumpRanking :: Ranking -> String
 dumpRanking ranking = intercalate "\n" lines
     where
         lines :: [String]
-        lines = fmap (\(combo, count) -> (show count) ++ " : " ++ (show combo)) $ Map.toList $ interaction ranking
+        lines = fmap (\(combo, count) -> show count ++ " : " ++ show combo) $ Map.toList $ interaction ranking
 
 {-
 Composition combines all the input decks.
@@ -123,12 +123,12 @@ composeDecks ranking (mainSize, sideSize) =
             | main <= mainSize && side <= sideSize = return cards
             | otherwise = do
                 Options {optVerbose=verbose} <- ask
-                when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size cards
-                when verbose $ liftIO $ hPutStrLn stderr $ show (worstRank, worstCard)
+                when verbose $ liftIO $ hPrint stderr (Set.size cards)
+                when verbose $ liftIO $ hPrint stderr (worstRank, worstCard)
                 compose newSize (worstCard `Set.delete` cards)
             where
                 newSize
-                    | isSideboard worstCard = (main, side - 1) 
+                    | isSideboard worstCard = (main, side - 1)
                     | otherwise = (main - 1, side)
                 (worstRank, worstCard) = head $ Set.toList sorted
                 sorted = Set.filter filt $ sortWithRanking ranking cards
@@ -155,7 +155,7 @@ sortWithRanking ranking deck = Map.foldlWithKey (\set card rank -> Set.insert (r
                 This way, lower orders are considered more important,
                 thus the popularity of the card on its own (first order combination) is most important
                 -}
-                rank = (fromIntegral count) * 1.0 / (2.0 ^ Set.size combo)
+                rank = fromIntegral count * 1.0 / (2.0 ^ Set.size combo)
 
 {-
 Addititive composition is similar to subtractive composition.
@@ -178,14 +178,14 @@ composeAdditive ranking (mainSize, sideSize) startDeck =
             | main >= mainSize && side >= sideSize = return deck
             | otherwise = do
                 Options {optVerbose=verbose} <- ask
-                when verbose $ liftIO $ hPutStrLn stderr $ show $ Set.size deck
-                when verbose $ liftIO $ hPutStrLn stderr $ show (bestRank, bestCard)
+                when verbose $ liftIO $ hPrint stderr (Set.size deck)
+                when verbose $ liftIO $ hPrint stderr (bestRank, bestCard)
                 composeAdditive' newSize (bestCard `Set.insert` deck)
             where
                 newSize
-                    | isSideboard bestCard = (main, side + 1) 
+                    | isSideboard bestCard = (main, side + 1)
                     | otherwise = (main + 1, side)
-                (bestRank, bestCard) = head $ sortBy (flip compare) $ fmap swap $ Map.toList rankMap
+                (bestRank, bestCard) = minimumBy (flip compare) (swap <$> Map.toList rankMap)
                 rankMap = Map.filterWithKey filt $ Map.foldlWithKey rankCombo Map.empty $ interaction ranking
                 filt card r
                     | (side >= sideSize && isSideboard card) || (main >= mainSize && not (isSideboard card)) = False
@@ -195,4 +195,4 @@ composeAdditive ranking (mainSize, sideSize) startDeck =
                     | otherwise = map
                     where
                         dif = combo `Set.difference` deck
-                        rank = (fromIntegral count) * 1.0 / (2.0 ^ Set.size combo)
+                        rank = fromIntegral count * 1.0 / (2.0 ^ Set.size combo)

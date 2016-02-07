@@ -5,18 +5,18 @@ module MTGBuilder.Parser (
     parseDeckFileOrFail
 ) where
 
-import MTGBuilder.Deck
-import MTGBuilder.Options
-import System.IO
-import Control.Monad
-import Control.Monad.Reader
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Language
-import qualified Text.ParserCombinators.Parsec.Token as Token
-import Text.Parsec.Char
-import Text.ParserCombinators.Parsec.Combinator
+import           Control.Monad
+import           Control.Monad.Reader
+import           Data.Set                                 (Set)
+import qualified Data.Set                                 as Set
+import           MTGBuilder.Deck
+import           MTGBuilder.Options
+import           System.IO
+import           Text.Parsec.Char
+import           Text.ParserCombinators.Parsec
+import           Text.ParserCombinators.Parsec.Combinator
+import           Text.ParserCombinators.Parsec.Language
+import qualified Text.ParserCombinators.Parsec.Token      as Token
 
 deckTokens = Token.makeTokenParser $ emptyDef {
     identStart = alphaNum <|> char '_',
@@ -38,7 +38,7 @@ deckParser = do
     Set.union <$> deck <*> option Set.empty sideboard
 
 deck :: Parser Deck
-deck = Set.unions <$> (many $ try cardParser)
+deck = Set.unions <$> many (try cardParser)
 
 cardParser :: Parser (Set Card)
 cardParser = lexeme (mainboardCard <|> sideboardCard)
@@ -49,7 +49,7 @@ mainboardCard = do
     set <- optionMaybe $ brackets $ optionMaybe identifier
     name <- manyTill anyChar endOfCard
     return $ Set.fromList [MkCard {name=name,copy=fromIntegral n,isSideboard=False} | n <- [1..numCopies]]
-    where endOfCard = (endOfLine >> return ()) <|> eof
+    where endOfCard = void endOfLine <|> eof
 
 setSideboard :: Card -> Card
 setSideboard card = card {isSideboard = True}
@@ -74,5 +74,4 @@ parseDeckFileOrFail file = do
     result <- liftIO $ parseDeckFile file
     case result of
         Left err    -> fail $ show err
-        Right deck  -> do
-            return (file, deck)
+        Right deck  -> return (file, deck)
