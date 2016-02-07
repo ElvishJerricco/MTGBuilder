@@ -2,18 +2,18 @@ module Main (
     main
 ) where
 
-import System.Environment
-import System.IO
-import System.Console.GetOpt
-import System.Exit
-import Control.Monad
-import Control.Monad.Reader
-import MTGBuilder.Deck
-import MTGBuilder.Parser
-import MTGBuilder.Options
-import Data.Maybe
-import Data.Set (Set)
-import qualified Data.Set as Set
+import           Control.Monad
+import           Control.Monad.Reader
+import           Data.Maybe
+import           Data.Set              (Set)
+import qualified Data.Set              as Set
+import           MTGBuilder.Deck
+import           MTGBuilder.Options
+import           MTGBuilder.Parser
+import           System.Console.GetOpt
+import           System.Environment
+import           System.Exit
+import           System.IO
 
 options :: [OptDescr (Options -> IO Options)]
 options =
@@ -57,21 +57,21 @@ options =
         (NoArg
             (\_ -> do
                 hPutStrLn stderr "Version 0.2.0.1"
-                exitWith ExitSuccess))
+                exitSuccess))
         "Print version"
 
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
                 hPutStrLn stderr (usageInfo "mtg-builder" options)
-                exitWith ExitSuccess))
+                exitSuccess))
         "Show help"
     ]
 
 startOptions :: Options
 startOptions = Options  {
     optVerbose      = False,
-    optWriteRanking = (\s -> return ()),
+    optWriteRanking = \s -> return (),
     optOutput       = stdout,
     optInputSeed    = Nothing,
     optSubtractive  = False,
@@ -80,7 +80,7 @@ startOptions = Options  {
 
 main = do
     -- Parse options, getting a list of option actions and input deck files
-    (actions, nonOptions, errors) <- getArgs >>= return . getOpt RequireOrder options
+    (actions, nonOptions, errors) <- liftM (getOpt RequireOrder options) getArgs
 
     -- Thread startOptions through all supplied option actions
     opts <- foldl (>>=) (return startOptions) actions
@@ -104,9 +104,9 @@ run files = do
     deck <- if subtractive
         then composeDecks ranking (60, 15)
         else
-            let seedM = fromMaybe (return Set.empty) $ fmap ((fmap snd) . parseDeckFileOrFail) inputSeed
+            let seedM = maybe (return Set.empty) (fmap snd . parseDeckFileOrFail) inputSeed
             in  seedM >>= composeAdditive ranking (60, 15)
-    when verbose $ liftIO $ hPutStrLn stderr ("Final size: " ++ (show $ Set.size deck))
+    when verbose $ liftIO $ hPutStrLn stderr ("Final size: " ++ show (Set.size deck))
     let dump = dumpDeck deck
     liftIO $ hPutStrLn output dump
     when verbose $ liftIO $ hPutStrLn stderr dump
