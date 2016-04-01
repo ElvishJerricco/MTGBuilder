@@ -1,4 +1,4 @@
-[An explanation of the algorithm can be found here](https://elvishjerricco.wordpress.com/2015/09/24/generating-magic-decks-using-deck-building-strategies/).
+[An explanation of the algorithm can be found here](http://elvishjerricco.github.io/2015/09/24/automatically-generating-magic-decks.html).
 
 You will need to have the Haskell platform installed.
 
